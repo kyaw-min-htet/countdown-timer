@@ -159,7 +159,7 @@ const App: React.FC = () => {
                 </>
             )}
 
-            <div className="timer-display" style={{ fontSize: isViewerMode ? '6rem' : '4rem' }}>
+            <div className={`timer-display ${isViewerMode ? 'viewer-mode' : ''}`}>
               {timeLeft > 0 ? formatTime(timeLeft) : isViewerMode ? formatTime(duration) : '00:00'}
             </div>
 
