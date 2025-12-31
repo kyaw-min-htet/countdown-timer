@@ -170,7 +170,7 @@ const App: React.FC = () => {
                     {isViewerMode ? '🎁 Reveal Surprise' : '🚀 Start'}
                   </button>
                   {!isViewerMode && (
-                    <button className="btn btn-share" onClick={handleShare} style={{ marginLeft: '10px' }}>
+                    <button className="btn btn-share" onClick={handleShare}>
                         {showCopied ? '✅ Copied!' : '🔗 Share Link'}
                     </button>
                   )}

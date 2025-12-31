@@ -239,30 +239,48 @@ body {
 @media (max-width: 480px) {
   .container {
     padding: 1rem;
-    align-items: flex-start; /* Move up slightly on mobile keybaord open */
-    padding-top: 10vh;
+    align-items: center; /* Center on mobile too for better aesthetics */
+    min-height: 100vh;
+    /* Ensure scrolling is possible if content is tall */
+    height: auto; 
+    padding-top: 2rem;
+    padding-bottom: 2rem;
   }
 
   .countdown-card {
     padding: 2rem 1.5rem;
-    border-radius: 16px;
+    border-radius: 20px;
+    margin: auto 0; /* Helps with centering in flex container */
+    width: 100%;
+  }
+
+  .title {
+    font-size: 2rem; /* Slightly smaller title on mobile */
+    margin-bottom: 2rem;
   }
 
   /* Make inputs easier to tap */
   .message-input, 
   .duration-input {
-    padding: 1rem;
+    padding: 0.9rem;
     font-size: 16px; /* Prevents iOS zoom */
+  }
+
+  .timer-display {
+    font-size: clamp(3rem, 18vw, 6rem); /* Adjust clamp for better moble fit */
+    margin: 1.5rem 0;
   }
 
   .button-group {
     flex-direction: column;
     width: 100%;
+    gap: 0.8rem;
   }
 
   .btn {
     width: 100%;
     padding: 1rem;
+    font-size: 1rem;
   }
 }
 
