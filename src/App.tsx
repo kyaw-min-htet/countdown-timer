@@ -128,7 +128,7 @@ const App: React.FC = () => {
 
         {!showSuccess ? (
           <>
-            {!isViewerMode && (
+            {!isViewerMode && !isActive && (
                 <>
                     <div className="input-group">
                     <label htmlFor="message">Your Message</label>
@@ -159,7 +159,7 @@ const App: React.FC = () => {
                 </>
             )}
 
-            <div className={`timer-display ${isViewerMode ? 'viewer-mode' : ''}`}>
+            <div className={`timer-display ${isViewerMode || isActive ? 'viewer-mode' : ''}`}>
               {timeLeft > 0 ? formatTime(timeLeft) : isViewerMode ? formatTime(duration) : '00:00'}
             </div>
 
