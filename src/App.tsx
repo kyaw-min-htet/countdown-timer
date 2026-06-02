@@ -18,7 +18,7 @@ const App: React.FC = () => {
     const hash = window.location.hash.slice(1); // Remove '#'
     if (hash) {
       try {
-        const decoded = atob(hash);
+        const decoded = decodeURIComponent(escape(atob(hash)));
         const data = JSON.parse(decoded);
         if (data.m && data.t) {
           setMessage(data.m);
@@ -98,18 +98,26 @@ const App: React.FC = () => {
       return;
     }
     
-    // Create "Short" URL using Base64
+    // Create "Short" URL using Base64 (UTF-8 safe)
     const data = JSON.stringify({ m: message, t: duration });
-    const encoded = btoa(data);
+    const encoded = btoa(unescape(encodeURIComponent(data)));
     
     // Construct new URL with Hash
     const baseUrl = window.location.origin + window.location.pathname;
     const shortUrl = `${baseUrl}#${encoded}`;
     
-    navigator.clipboard.writeText(shortUrl).then(() => {
-      setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
-    });
+    if (navigator.share) {
+      navigator.share({
+        title: 'Surprise Countdown',
+        text: 'Check out this surprise countdown!',
+        url: shortUrl,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(shortUrl).then(() => {
+        setShowCopied(true);
+        setTimeout(() => setShowCopied(false), 2000);
+      });
+    }
   };
 
   // Format time as MM:SS
@@ -150,9 +158,21 @@ const App: React.FC = () => {
                         type="number"
                         className="duration-input"
                         min="1"
-                        max="3600"
+                        max="60"
                         value={duration}
-                        onChange={(e) => setDuration(Number(e.target.value))}
+                        onChange={(e) =>  {
+                          const val = Number(e.target.value);
+
+                          if(val === 0) {
+                            setDuration(0);
+                            return 
+                          }
+
+                          let num = Number(val);
+                          if(num > 60) num = 60;
+                          if(num < 1) num = 1;
+                         
+                        setDuration(num);}}
                         disabled={isActive}
                     />
                     </div>
@@ -169,11 +189,9 @@ const App: React.FC = () => {
                   <button className="btn btn-start" onClick={handleStart}>
                     {isViewerMode ? '🎁 Reveal Surprise' : '🚀 Start'}
                   </button>
-                  {!isViewerMode && (
                     <button className="btn btn-share" onClick={handleShare}>
                         {showCopied ? '✅ Copied!' : '🔗 Share Link'}
                     </button>
-                  )}
                 </>
               ) : (
                 <button className="btn btn-reset" onClick={handleReset}>
