@@ -1,18 +1,16 @@
 # ⏱️ Surprise Countdown App
 
-A beautiful, premium-styled countdown timer built with React. Create a personalized countdown message, set the duration, and generate a shareable "surprise" link for your friends!
-
-![Countdown App Screenshot](https://via.placeholder.com/800x400?text=Premium+Countdown+App)
+A beautiful, premium-styled countdown timer built with React and Vite. Create a personalized countdown message, set a short duration, and generate a shareable surprise link for your friends.
 
 ## ✨ Features
 
 - **Custom Messages**: Type any message for the big reveal.
-- **Flexible Duration**: Set hours, minutes, or seconds.
+- **Short Countdown Duration**: Set a countdown in seconds, up to 60 seconds.
 - **Premium UI**: Glassmorphism design with 'Outfit' font and smooth animations.
 - **🎁 Surprise Mode**:
   - Generate a unique **Share Link**.
-  - Message is **hidden** in the URL (Base64 encoded).
-  - Recipient sees a "Surprise Countdown" and only sees the message when the timer hits zero!
+  - Message and duration are encoded in the URL hash.
+  - Recipients see a "Surprise Countdown" and only see the message when the timer hits zero.
 - **Docker Support**: Containerized for easy deployment.
 
 ## 🚀 Getting Started
@@ -25,28 +23,28 @@ A beautiful, premium-styled countdown timer built with React. Create a personali
 
 ### 💻 Local Development
 
-1.  **Clone the repository** (if applicable) or navigate to project folder.
-2.  **Install dependencies**:
+1. **Clone the repository** or navigate to the project folder.
+2. **Install dependencies**:
     ```bash
     npm install
     ```
-3.  **Start the development server**:
+3. **Start the development server**:
     ```bash
     npm run dev
     ```
-4.  Open [http://localhost:5173](http://localhost:5173) in your browser.
+4. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ### 🐳 Running with Docker
 
 You can easily run the application using Docker Compose.
 
-1.  **Build and Start**:
+1. **Build and start**:
     ```bash
     docker compose up --build
     ```
-2.  **Access the App**:
+2. **Access the app**:
     Open [http://localhost:5173](http://localhost:5173).
-3.  **Stop**:
+3. **Stop the container**:
     Press `Ctrl+C` or run `docker compose down`.
 
 ## 🛠️ Tech Stack
@@ -58,12 +56,12 @@ You can easily run the application using Docker Compose.
 
 ## 📝 Usage Guide
 
-1.  **Enter Message**: Type "Happy Birthday!", "We are Live!", etc.
-2.  **Set Time**: Enter duration in seconds (e.g., `10` for 10 seconds).
-3.  **Share**:
+1. **Enter a message**: Type "Happy Birthday!", "We are live!", etc.
+2. **Set the time**: Enter a duration in seconds, from `1` to `60`.
+3. **Share**:
     - Click **"🔗 Share Link"**.
-    - Send the copied URL to a friend.
-4.  **View**:
+    - Send the generated URL to a friend.
+4. **View**:
     - Your friend clicks the link.
     - They see "🎁 Surprise Countdown".
     - They click "Reveal Surprise" → Timer starts → Message revealed! 🎉
