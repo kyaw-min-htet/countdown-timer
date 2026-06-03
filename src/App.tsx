@@ -1,95 +1,154 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useTimer } from 'react-timer-hook';
 import './index.css';
 
-const App: React.FC = () => {
-  const [message, setMessage] = useState('');
-  const [duration, setDuration] = useState(10);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [isActive, setIsActive] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+type SharedCountdown = {
+  m: string;
+  t: number;
+};
 
-  const [showCopied, setShowCopied] = useState(false);
+type InitialAppState = {
+  message: string;
+  duration: number;
+  isViewerMode: boolean;
+};
 
-  const [isViewerMode, setIsViewerMode] = useState(false);
+const DEFAULT_DURATION_SECONDS = 10;
+const MAX_DURATION_SECONDS = 60;
 
-  // Load from URL (Hash or Params) on mount
-  useEffect(() => {
-    // Check for Hash (New "Short" format)
-    const hash = window.location.hash.slice(1); // Remove '#'
-    if (hash) {
-      try {
-        const decoded = decodeURIComponent(escape(atob(hash)));
-        const data = JSON.parse(decoded);
-        if (data.m && data.t) {
-          setMessage(data.m);
-          setDuration(Number(data.t));
-          setTimeLeft(Number(data.t));
-          setIsViewerMode(true);
-          return; // Stop here if hash found
-        }
-      } catch (e) {
-        console.error("Invalid hash", e);
-      }
+const createExpiryTimestamp = (secondsFromNow: number): Date => {
+  const expiry = new Date();
+  expiry.setSeconds(expiry.getSeconds() + secondsFromNow);
+  return expiry;
+};
+
+const formatTime = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
+const clampDuration = (value: number): number => {
+  return Math.min(Math.max(Math.floor(value), 1), MAX_DURATION_SECONDS);
+};
+
+const parseDuration = (value: unknown): number | null => {
+  const duration = Number(value);
+
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return null;
+  }
+
+  return clampDuration(duration);
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null;
+};
+
+const encodeSharedCountdown = (countdown: SharedCountdown): string => {
+  const bytes = new TextEncoder().encode(JSON.stringify(countdown));
+  let binary = '';
+
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+
+  return btoa(binary);
+};
+
+const decodeSharedCountdown = (encoded: string): SharedCountdown | null => {
+  try {
+    const binary = atob(encoded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+
+    if (!isRecord(parsed) || typeof parsed.m !== 'string') {
+      return null;
     }
 
-    // Fallback support for old Query Params
-    const params = new URLSearchParams(window.location.search);
-    const msgParam = params.get('m');
-    const timeParam = params.get('t');
+    const duration = parseDuration(parsed.t);
 
-    if (msgParam && timeParam) {
-      setMessage(decodeURIComponent(msgParam));
-      setDuration(Number(timeParam));
-      setTimeLeft(Number(timeParam));
-      setIsViewerMode(true);
-    }
-  }, []);
-
-  // Countdown logic
-  useEffect(() => {
-    let interval: number | undefined;
-
-    if (isActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsActive(false);
-            setShowSuccess(true);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else if (timeLeft === 0 && isActive) {
-      setIsActive(false);
-      setShowSuccess(true);
+    if (!parsed.m || duration === null) {
+      return null;
     }
 
-    return () => {
-      if (interval) clearInterval(interval);
+    return { m: parsed.m, t: duration };
+  } catch (error) {
+    console.error('Invalid countdown link', error);
+    return null;
+  }
+};
+
+const createInitialAppState = (): InitialAppState => {
+  const defaultState: InitialAppState = {
+    message: '',
+    duration: DEFAULT_DURATION_SECONDS,
+    isViewerMode: false,
+  };
+
+  if (typeof window === 'undefined') {
+    return defaultState;
+  }
+
+  const hash = window.location.hash.slice(1);
+  const sharedCountdown = hash ? decodeSharedCountdown(hash) : null;
+
+  if (sharedCountdown) {
+    return {
+      message: sharedCountdown.m,
+      duration: sharedCountdown.t,
+      isViewerMode: true,
     };
-  }, [isActive, timeLeft]);
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const message = params.get('m');
+  const duration = parseDuration(params.get('t'));
+
+  if (message && duration !== null) {
+    return {
+      message,
+      duration,
+      isViewerMode: true,
+    };
+  }
+
+  return defaultState;
+};
+
+const App = () => {
+  const [initialState] = useState(createInitialAppState);
+  const [message, setMessage] = useState(initialState.message);
+  const [duration, setDuration] = useState(initialState.duration);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
+  const isViewerMode = initialState.isViewerMode;
+
+  const { totalSeconds, restart, isRunning } = useTimer({
+    expiryTimestamp: createExpiryTimestamp(isViewerMode ? duration : 0),
+    autoStart: false,
+    onExpire: () => setShowSuccess(true),
+  });
 
   const handleStart = () => {
     if (!message.trim()) {
       alert('Please enter a message!');
       return;
     }
+
     if (duration <= 0) {
       alert('Please enter a valid duration!');
       return;
     }
-    if (!isActive && timeLeft === 0) {
-         setTimeLeft(duration);
-    }
-    setIsActive(true);
+
     setShowSuccess(false);
+    restart(createExpiryTimestamp(duration), true);
   };
 
   const handleReset = () => {
-    setIsActive(false);
-    setTimeLeft(isViewerMode ? duration : 0);
     setShowSuccess(false);
+    restart(createExpiryTimestamp(isViewerMode ? duration : 0), false);
   };
 
   const handleShare = () => {
@@ -97,101 +156,94 @@ const App: React.FC = () => {
       alert('Please enter a message to share!');
       return;
     }
-    
-    // Create "Short" URL using Base64 (UTF-8 safe)
-    const data = JSON.stringify({ m: message, t: duration });
-    const encoded = btoa(unescape(encodeURIComponent(data)));
-    
-    // Construct new URL with Hash
-    const baseUrl = window.location.origin + window.location.pathname;
+
+    const encoded = encodeSharedCountdown({ m: message, t: duration });
+    const baseUrl = `${window.location.origin}${window.location.pathname}`;
     const shortUrl = `${baseUrl}#${encoded}`;
-    
+
     if (navigator.share) {
-      navigator.share({
-        title: 'Surprise Countdown',
-        text: 'Check out this surprise countdown!',
-        url: shortUrl,
-      }).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(shortUrl).then(() => {
-        setShowCopied(true);
-        setTimeout(() => setShowCopied(false), 2000);
-      });
+      navigator
+        .share({
+          title: 'Surprise Countdown',
+          text: 'Check out this surprise countdown!',
+          url: shortUrl,
+        })
+        .catch(console.error);
+      return;
     }
+
+    navigator.clipboard.writeText(shortUrl).then(() => {
+      setShowCopied(true);
+      window.setTimeout(() => setShowCopied(false), 2000);
+    });
   };
 
-  // Format time as MM:SS
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  const handleDurationChange = (value: string) => {
+    const nextDuration = Number(value);
+
+    if (!Number.isFinite(nextDuration) || nextDuration <= 0) {
+      setDuration(0);
+      return;
+    }
+
+    setDuration(clampDuration(nextDuration));
   };
+
+  const timerSeconds = isViewerMode || isRunning ? totalSeconds : 0;
 
   return (
     <div className="container">
       <div className="countdown-card">
         <h1 className="title">
-            {isViewerMode ? '🎁 Surprise Countdown' : '⏱️ Countdown Timer'}
+          {isViewerMode ? '🎁 Surprise Countdown' : '⏱️ Countdown Timer'}
         </h1>
 
         {!showSuccess ? (
           <>
-            {!isViewerMode && !isActive && (
-                <>
-                    <div className="input-group">
-                    <label htmlFor="message">Your Message</label>
-                    <textarea
-                        id="message"
-                        className="message-input"
-                        placeholder="Enter your message (e.g., Happy New Year!)"
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        disabled={isActive}
-                        rows={3}
-                    />
-                    </div>
+            {!isViewerMode && !isRunning && (
+              <>
+                <div className="input-group">
+                  <label htmlFor="message">Your Message</label>
+                  <textarea
+                    id="message"
+                    className="message-input"
+                    placeholder="Enter your message (e.g., Happy New Year!)"
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    disabled={isRunning}
+                    rows={3}
+                  />
+                </div>
 
-                    <div className="input-group">
-                    <label htmlFor="duration">Duration (seconds)</label>
-                    <input
-                        id="duration"
-                        type="number"
-                        className="duration-input"
-                        min="1"
-                        max="60"
-                        value={duration}
-                        onChange={(e) =>  {
-                          const val = Number(e.target.value);
-
-                          if(val === 0) {
-                            setDuration(0);
-                            return 
-                          }
-
-                          let num = Number(val);
-                          if(num > 60) num = 60;
-                          if(num < 1) num = 1;
-                         
-                        setDuration(num);}}
-                        disabled={isActive}
-                    />
-                    </div>
-                </>
+                <div className="input-group">
+                  <label htmlFor="duration">Duration (seconds)</label>
+                  <input
+                    id="duration"
+                    type="number"
+                    className="duration-input"
+                    min="1"
+                    max="60"
+                    value={duration}
+                    onChange={(event) => handleDurationChange(event.target.value)}
+                    disabled={isRunning}
+                  />
+                </div>
+              </>
             )}
 
-            <div className={`timer-display ${isViewerMode || isActive ? 'viewer-mode' : ''}`}>
-              {timeLeft > 0 ? formatTime(timeLeft) : isViewerMode ? formatTime(duration) : '00:00'}
+            <div className={`timer-display ${isViewerMode || isRunning ? 'viewer-mode' : ''}`}>
+              {formatTime(timerSeconds)}
             </div>
 
             <div className="button-group">
-              {!isActive ? (
+              {!isRunning ? (
                 <>
                   <button className="btn btn-start" onClick={handleStart}>
                     {isViewerMode ? '🎁 Reveal Surprise' : '🚀 Start'}
                   </button>
-                    <button className="btn btn-share" onClick={handleShare}>
-                        {showCopied ? '✅ Copied!' : '🔗 Share Link'}
-                    </button>
+                  <button className="btn btn-share" onClick={handleShare}>
+                    {showCopied ? '✅ Copied!' : '🔗 Share Link'}
+                  </button>
                 </>
               ) : (
                 <button className="btn btn-reset" onClick={handleReset}>
@@ -199,11 +251,13 @@ const App: React.FC = () => {
                 </button>
               )}
             </div>
-            
-            {isViewerMode && !isActive && (
-                <div style={{ marginTop: '20px', color: '#888', fontSize: '0.9rem' }}>
-                    <a href="/" style={{ color: '#667eea', textDecoration: 'none' }}>Create your own countdown</a>
-                </div>
+
+            {isViewerMode && !isRunning && (
+              <div style={{ marginTop: '20px', color: '#888', fontSize: '0.9rem' }}>
+                <a href="/" style={{ color: '#667eea', textDecoration: 'none' }}>
+                  Create your own countdown
+                </a>
+              </div>
             )}
           </>
         ) : (
